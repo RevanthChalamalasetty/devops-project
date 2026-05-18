@@ -1,0 +1,28 @@
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfvars
+**/crash.log
+
+# Secrets
+*.pem
+*.key
+**/vault-keys.json
+.env
+
+# Ansible
+ansible/inventory/hosts.ini
+
+# Java/Maven
+**/target/
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+*.iml
+
+# Logs
+*.log
