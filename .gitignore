@@ -26,3 +26,4 @@ ansible/inventory/hosts.ini
 
 # Logs
 *.log
+ansible/inventory/hosts.ini

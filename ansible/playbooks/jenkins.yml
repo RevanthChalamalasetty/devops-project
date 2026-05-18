@@ -1,0 +1,118 @@
+---
+- name: Install Java 21, Maven, and Jenkins
+  hosts: jenkins
+  become: true
+
+  tasks:
+    # ── Java 21 ───────────────────────────────────────────
+    - name: Remove Java 17 if present
+      dnf:
+        name: java-17-amazon-corretto-headless
+        state: absent
+
+    - name: Install Java 21
+      dnf:
+        name: java-21-amazon-corretto-headless
+        state: present
+
+    - name: Verify Java version
+      command: java -version
+      register: java_ver
+      changed_when: false
+
+    - name: Print Java version
+      debug:
+        msg: "{{ java_ver.stderr }}"
+
+    # ── Maven ─────────────────────────────────────────────
+    - name: Download Maven 3.9
+      get_url:
+        url: https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz
+        dest: /tmp/maven.tar.gz
+        mode: '0644'
+
+    - name: Create Maven directory
+      file:
+        path: /opt/maven
+        state: directory
+        mode: '0755'
+
+    - name: Extract Maven
+      unarchive:
+        src: /tmp/maven.tar.gz
+        dest: /opt/maven
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: Set Maven environment variables
+      copy:
+        dest: /etc/profile.d/maven.sh
+        content: |
+          export M2_HOME=/opt/maven
+          export PATH=$M2_HOME/bin:$PATH
+        mode: '0644'
+
+    - name: Verify Maven
+      shell: source /etc/profile.d/maven.sh && mvn -version
+      args:
+        executable: /bin/bash
+      register: mvn_ver
+      changed_when: false
+
+    - name: Print Maven version
+      debug:
+        msg: "{{ mvn_ver.stdout }}"
+
+    # ── Jenkins ───────────────────────────────────────────
+    - name: Add Jenkins repo
+      get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+        mode: '0644'
+
+    - name: Import Jenkins GPG key
+      rpm_key:
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Install Jenkins
+      dnf:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Configure JAVA_HOME for Jenkins systemd
+      copy:
+        dest: /etc/systemd/system/jenkins.service.d/override.conf
+        content: |
+          [Service]
+          Environment="JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto.x86_64"
+        mode: '0644'
+      notify: Reload systemd
+
+    - name: Enable and start Jenkins
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for Jenkins to start
+      wait_for:
+        port: 8080
+        delay: 15
+        timeout: 120
+
+    - name: Get Jenkins initial admin password
+      command: cat /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password
+      changed_when: false
+
+    - name: Print Jenkins initial password
+      debug:
+        msg: "Jenkins initial password: {{ jenkins_password.stdout }}"
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes

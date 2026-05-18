@@ -1,0 +1,14 @@
+---
+# Master playbook — runs all playbooks in order
+# Usage: ansible-playbook -i ../inventory/hosts.ini site.yml
+#
+# What gets installed:
+#   common.yml   → base packages, timezone
+#   jenkins.yml  → Java 21, Maven 3.9, Jenkins
+#   docker.yml   → Docker engine
+#   tools.yml    → kubectl, AWS CLI v2, Trivy
+
+- import_playbook: common.yml
+- import_playbook: jenkins.yml
+- import_playbook: docker.yml
+- import_playbook: tools.yml

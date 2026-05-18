@@ -1,0 +1,43 @@
+---
+- name: Install Docker and configure for Jenkins
+  hosts: jenkins
+  become: true
+
+  tasks:
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Set Docker socket permissions
+      file:
+        path: /var/run/docker.sock
+        group: docker
+        mode: '0660'
+
+    - name: Verify Docker
+      command: docker --version
+      register: docker_ver
+      changed_when: false
+
+    - name: Print Docker version
+      debug:
+        msg: "{{ docker_ver.stdout }}"

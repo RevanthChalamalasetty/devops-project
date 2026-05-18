@@ -1,0 +1,105 @@
+---
+- name: Install kubectl, AWS CLI, and Trivy
+  hosts: jenkins
+  become: true
+
+  tasks:
+    # ── kubectl ───────────────────────────────────────────
+    - name: Download kubectl
+      get_url:
+        url: https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Verify kubectl
+      command: kubectl version --client
+      register: kubectl_ver
+      changed_when: false
+
+    - name: Print kubectl version
+      debug:
+        msg: "{{ kubectl_ver.stdout }}"
+
+    # ── AWS CLI v2 ────────────────────────────────────────
+    - name: Download AWS CLI v2
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Unzip AWS CLI
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Install AWS CLI
+      command: /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Verify AWS CLI
+      command: aws --version
+      register: aws_ver
+      changed_when: false
+
+    - name: Print AWS CLI version
+      debug:
+        msg: "{{ aws_ver.stdout }}"
+
+    # ── Trivy — install from binary release ──────────────
+    - name: Get latest Trivy version
+      uri:
+        url: https://api.github.com/repos/aquasecurity/trivy/releases/latest
+        return_content: yes
+      register: trivy_release
+
+    - name: Set Trivy version fact
+      set_fact:
+        trivy_version: "{{ trivy_release.json.tag_name | replace('v', '') }}"
+
+    - name: Download Trivy binary
+      get_url:
+        url: "https://github.com/aquasecurity/trivy/releases/download/v{{ trivy_version }}/trivy_{{ trivy_version }}_Linux-64bit.tar.gz"
+        dest: /tmp/trivy.tar.gz
+        mode: '0644'
+
+    - name: Extract Trivy
+      unarchive:
+        src: /tmp/trivy.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
+        extra_opts: [--strip-components=0]
+        include:
+          - trivy
+
+    - name: Set Trivy permissions
+      file:
+        path: /usr/local/bin/trivy
+        mode: '0755'
+
+    - name: Verify Trivy
+      command: trivy --version
+      register: trivy_ver
+      changed_when: false
+
+    - name: Print Trivy version
+      debug:
+        msg: "{{ trivy_ver.stdout }}"
+
+    # ── Jenkins dirs ──────────────────────────────────────
+    - name: Create .kube directory for jenkins user
+      file:
+        path: /var/lib/jenkins/.kube
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Create .aws directory for jenkins user
+      file:
+        path: /var/lib/jenkins/.aws
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'

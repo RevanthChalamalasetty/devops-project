@@ -53,7 +53,7 @@ data "aws_ami" "al2023" {
 
 resource "aws_instance" "jenkins" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.micro"
+  instance_type          = "t3.small"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.jenkins.id]
   key_name               = aws_key_pair.jenkins.key_name
