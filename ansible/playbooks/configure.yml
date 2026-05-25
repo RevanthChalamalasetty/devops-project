@@ -1,0 +1,47 @@
+---
+- name: Configure Jenkins on Ubuntu laptop
+  hosts: jenkins
+  become: true
+
+  tasks:
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Create .kube directory for jenkins user
+      file:
+        path: /var/lib/jenkins/.kube
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Create .aws directory for jenkins user
+      file:
+        path: /var/lib/jenkins/.aws
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0700'
+
+    - name: Restart Jenkins to pick up docker group membership
+      systemd:
+        name: jenkins
+        state: restarted
+
+    - name: Verify Jenkins is running after restart
+      wait_for:
+        port: 8080
+        delay: 10
+        timeout: 60
+
+    - name: Verify docker group membership for jenkins
+      command: id jenkins
+      register: jenkins_id
+      changed_when: false
+
+    - name: Print jenkins group memberships
+      debug:
+        msg: "{{ jenkins_id.stdout }}"

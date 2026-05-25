@@ -93,13 +93,13 @@ resource "aws_iam_openid_connect_provider" "eks" {
 # Give Jenkins admin access to EKS
 resource "aws_eks_access_entry" "jenkins" {
   cluster_name  = aws_eks_cluster.main.name
-  principal_arn = local.jenkins_role_arn
+  principal_arn = local.jenkins_user_arn
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "jenkins_admin" {
   cluster_name  = aws_eks_cluster.main.name
-  principal_arn = local.jenkins_role_arn
+  principal_arn = local.jenkins_user_arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   access_scope {

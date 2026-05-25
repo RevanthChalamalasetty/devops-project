@@ -38,5 +38,5 @@ data "terraform_remote_state" "persistent" {
 locals {
   vpc_id           = data.terraform_remote_state.persistent.outputs.vpc_id
   public_subnet_id = data.terraform_remote_state.persistent.outputs.public_subnet_id
-  jenkins_role_arn = data.terraform_remote_state.persistent.outputs.jenkins_role_arn
+  jenkins_user_arn = data.terraform_remote_state.persistent.outputs.jenkins_user_arn
 }
