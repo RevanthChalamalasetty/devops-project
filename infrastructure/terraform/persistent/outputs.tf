@@ -10,22 +10,19 @@ output "igw_id" {
   value = aws_internet_gateway.main.id
 }
 
-output "jenkins_instance_id" {
-  value = aws_instance.jenkins.id
+output "jenkins_user_arn" {
+  description = "IAM user ARN — used by cluster stack for EKS access entry"
+  value       = aws_iam_user.jenkins.arn
 }
 
-output "jenkins_public_ip" {
-  value = aws_eip.jenkins.public_ip
+output "jenkins_access_key_id" {
+  description = "Add to Jenkins credentials store — never commit this"
+  value       = aws_iam_access_key.jenkins.id
+  sensitive   = true
 }
 
-output "jenkins_url" {
-  value = "http://${aws_eip.jenkins.public_ip}:8080"
-}
-
-output "jenkins_ssh" {
-  value = "ssh -i ~/.ssh/devops-key ec2-user@${aws_eip.jenkins.public_ip}"
-}
-
-output "jenkins_role_arn" {
-  value = aws_iam_role.jenkins.arn
+output "jenkins_secret_access_key" {
+  description = "Add to Jenkins credentials store — never commit this"
+  value       = aws_iam_access_key.jenkins.secret
+  sensitive   = true
 }

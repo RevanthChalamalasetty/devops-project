@@ -17,18 +17,7 @@ variable "vpc_cidr" {
 }
 
 variable "public_subnet_cidr" {
-  description = "CIDR for public subnet where Jenkins lives"
+  description = "CIDR for public subnet"
   type        = string
   default     = "10.0.1.0/24"
-}
-
-variable "my_ip" {
-  description = "Your public IP in CIDR notation e.g. 1.2.3.4/32"
-  type        = string
-}
-
-variable "public_key_path" {
-  description = "Path to your SSH public key"
-  type        = string
-  default     = "~/.ssh/devops-key.pub"
 }

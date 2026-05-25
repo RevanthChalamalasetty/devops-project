@@ -1,54 +1,51 @@
 ---
-- name: Install kubectl, AWS CLI, and Trivy
+- name: Install pipeline tools on Ubuntu laptop
   hosts: jenkins
   become: true
 
+  vars:
+    maven_version: "3.9.9"
+
   tasks:
-    # ── kubectl ───────────────────────────────────────────
-    - name: Download kubectl
+    # ── Maven 3.9 ─────────────────────────────────────────
+    - name: Download Maven {{ maven_version }}
       get_url:
-        url: https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
-        dest: /usr/local/bin/kubectl
-        mode: '0755'
-
-    - name: Verify kubectl
-      command: kubectl version --client
-      register: kubectl_ver
-      changed_when: false
-
-    - name: Print kubectl version
-      debug:
-        msg: "{{ kubectl_ver.stdout }}"
-
-    # ── AWS CLI v2 ────────────────────────────────────────
-    - name: Download AWS CLI v2
-      get_url:
-        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-        dest: /tmp/awscliv2.zip
+        url: "https://archive.apache.org/dist/maven/maven-3/{{ maven_version }}/binaries/apache-maven-{{ maven_version }}-bin.tar.gz"
+        dest: /tmp/maven.tar.gz
         mode: '0644'
 
-    - name: Unzip AWS CLI
+    - name: Extract Maven to /opt
       unarchive:
-        src: /tmp/awscliv2.zip
-        dest: /tmp/
+        src: /tmp/maven.tar.gz
+        dest: /opt
         remote_src: yes
 
-    - name: Install AWS CLI
-      command: /tmp/aws/install --update
-      args:
-        creates: /usr/local/bin/aws
+    - name: Create Maven symlink
+      file:
+        src: "/opt/apache-maven-{{ maven_version }}"
+        dest: /opt/maven
+        state: link
+        force: yes
 
-    - name: Verify AWS CLI
-      command: aws --version
-      register: aws_ver
+    - name: Set Maven in PATH for all users
+      copy:
+        dest: /etc/profile.d/maven.sh
+        content: |
+          export MAVEN_HOME=/opt/maven
+          export PATH=$MAVEN_HOME/bin:$PATH
+        mode: '0755'
+
+    - name: Verify Maven version
+      shell: /opt/maven/bin/mvn -version
+      register: mvn_ver
       changed_when: false
 
-    - name: Print AWS CLI version
+    - name: Print Maven version
       debug:
-        msg: "{{ aws_ver.stdout }}"
+        msg: "{{ mvn_ver.stdout }}"
 
-    # ── Trivy — install from binary release ──────────────
-    - name: Get latest Trivy version
+    # ── Trivy ─────────────────────────────────────────────
+    - name: Get latest Trivy version from GitHub API
       uri:
         url: https://api.github.com/repos/aquasecurity/trivy/releases/latest
         return_content: yes
@@ -64,12 +61,11 @@
         dest: /tmp/trivy.tar.gz
         mode: '0644'
 
-    - name: Extract Trivy
+    - name: Extract Trivy to /usr/local/bin
       unarchive:
         src: /tmp/trivy.tar.gz
-        dest: /usr/local/bin/
+        dest: /usr/local/bin
         remote_src: yes
-        extra_opts: [--strip-components=0]
         include:
           - trivy
 
@@ -87,19 +83,33 @@
       debug:
         msg: "{{ trivy_ver.stdout }}"
 
-    # ── Jenkins dirs ──────────────────────────────────────
-    - name: Create .kube directory for jenkins user
-      file:
-        path: /var/lib/jenkins/.kube
-        state: directory
-        owner: jenkins
-        group: jenkins
-        mode: '0755'
+    # ── AWS CLI v2 ────────────────────────────────────────
+    - name: Remove old AWS CLI v1 if installed via apt
+      apt:
+        name: awscli
+        state: absent
+      ignore_errors: yes
 
-    - name: Create .aws directory for jenkins user
-      file:
-        path: /var/lib/jenkins/.aws
-        state: directory
-        owner: jenkins
-        group: jenkins
-        mode: '0755'
+    - name: Download AWS CLI v2
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Unzip AWS CLI v2
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Install AWS CLI v2
+      command: /tmp/aws/install --update
+
+    - name: Verify AWS CLI version
+      command: aws --version
+      register: aws_ver
+      changed_when: false
+
+    - name: Print AWS CLI version
+      debug:
+        msg: "{{ aws_ver.stdout }}"
