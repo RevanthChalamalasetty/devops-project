@@ -56,14 +56,14 @@ pipeline {
         stage('Update Helm Chart') {
             steps {
                 withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
-                    sh """
-                        sed -i 's|tag:.*|tag: "${IMAGE_TAG}"|' helm/spring-app/values.yaml
+                    sh '''
+                        sed -i "s|tag:.*|tag: \\"''' + env.IMAGE_TAG + '''\\"| " helm/spring-app/values.yaml
                         git config user.email "jenkins@devops-project.local"
                         git config user.name "Jenkins"
                         git add helm/spring-app/values.yaml
-                        git commit -m "ci: update image tag to ${IMAGE_TAG}"
-                        git push https://${GITHUB_TOKEN}@github.com/RevanthChalamalasetty/devops-project.git HEAD:main
-                    """
+                        git commit -m "ci: update image tag to ''' + env.IMAGE_TAG + '''"
+                        git push https://$GITHUB_TOKEN@github.com/RevanthChalamalasetty/devops-project.git HEAD:main
+                    '''
                 }
             }
         }
