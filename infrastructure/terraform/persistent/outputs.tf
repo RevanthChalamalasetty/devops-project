@@ -26,3 +26,8 @@ output "jenkins_secret_access_key" {
   value       = aws_iam_access_key.jenkins.secret
   sensitive   = true
 }
+
+output "ecr_repository_url" {
+  description = "ECR URL used in Jenkinsfile for docker push"
+  value       = aws_ecr_repository.spring_app.repository_url
+}
