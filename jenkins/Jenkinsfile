@@ -11,6 +11,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                script {
+                    def lastCommitAuthor = sh(
+                        script: 'git log -1 --format="%an"',
+                        returnStdout: true
+                    ).trim()
+                    if (lastCommitAuthor == 'Jenkins') {
+                        currentBuild.result = 'SUCCESS'
+                        error('Skipping — triggered by Jenkins own commit')
+                    }
+                }
                 echo "Building commit: ${env.GIT_COMMIT}"
             }
         }
