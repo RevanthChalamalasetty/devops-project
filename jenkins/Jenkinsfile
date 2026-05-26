@@ -5,6 +5,7 @@ pipeline {
         AWS_REGION      = 'ap-south-1'
         ECR_REPO        = '486336528116.dkr.ecr.ap-south-1.amazonaws.com/devops-project/spring-app'
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
+        IS_JENKINS_COMMIT = 'false'
     }
 
     stages {
@@ -12,32 +13,36 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    def lastCommitAuthor = sh(
+                    def author = sh(
                         script: 'git log -1 --format="%an"',
                         returnStdout: true
                     ).trim()
-                    if (lastCommitAuthor == 'Jenkins') {
-                        currentBuild.result = 'SUCCESS'
-                        error('Skipping — triggered by Jenkins own commit')
+                    env.IS_JENKINS_COMMIT = author == 'Jenkins' ? 'true' : 'false'
+                    if (env.IS_JENKINS_COMMIT == 'true') {
+                        echo "Commit by Jenkins — skipping pipeline"
+                    } else {
+                        echo "Building commit: ${env.GIT_COMMIT}"
                     }
                 }
-                echo "Building commit: ${env.GIT_COMMIT}"
             }
         }
 
         stage('Build & Test') {
+            when { expression { env.IS_JENKINS_COMMIT == 'false' } }
             steps {
                 sh '/opt/maven/bin/mvn clean verify -f app/pom.xml'
             }
         }
 
         stage('Docker Build') {
+            when { expression { env.IS_JENKINS_COMMIT == 'false' } }
             steps {
                 sh "docker build -t ${ECR_REPO}:${IMAGE_TAG} -f app/Dockerfile app/"
             }
         }
 
         stage('Trivy Scan') {
+            when { expression { env.IS_JENKINS_COMMIT == 'false' } }
             steps {
                 sh """
                     trivy image \
@@ -51,6 +56,7 @@ pipeline {
         }
 
         stage('Push to ECR') {
+            when { expression { env.IS_JENKINS_COMMIT == 'false' } }
             steps {
                 withAWS(credentials: 'aws-credentials', region: "${AWS_REGION}") {
                     sh """
@@ -64,6 +70,7 @@ pipeline {
         }
 
         stage('Update Helm Chart') {
+            when { expression { env.IS_JENKINS_COMMIT == 'false' } }
             steps {
                 withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                     sh '''
@@ -80,14 +87,21 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Pipeline completed. Image: ${ECR_REPO}:${IMAGE_TAG}"
-        }
-        failure {
-            echo "Pipeline failed at stage: ${env.STAGE_NAME}"
-        }
         always {
-            sh "docker rmi ${ECR_REPO}:${IMAGE_TAG} || true"
+            script {
+                if (env.IS_JENKINS_COMMIT == 'true') {
+                    currentBuild.result = 'SUCCESS'
+                    currentBuild.description = 'Skipped: Jenkins own commit'
+                }
+                sh "docker rmi ${ECR_REPO}:${IMAGE_TAG} || true"
+            }
+        }
+        success {
+            script {
+                if (env.IS_JENKINS_COMMIT == 'false') {
+                    echo "Pipeline completed. Image: ${ECR_REPO}:${IMAGE_TAG}"
+                }
+            }
         }
     }
 }
