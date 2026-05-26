@@ -13,15 +13,14 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    def author = sh(
-                        script: 'git log -1 --format="%an"',
+                    def message = sh(
+                        script: 'git log -1 --format="%s"',
                         returnStdout: true
                     ).trim()
-                    env.IS_JENKINS_COMMIT = author == 'Jenkins' ? 'true' : 'false'
+                    echo "Last commit message: ${message}"
+                    env.IS_JENKINS_COMMIT = message.contains('[skip ci]') ? 'true' : 'false'
                     if (env.IS_JENKINS_COMMIT == 'true') {
-                        echo "Commit by Jenkins — skipping pipeline"
-                    } else {
-                        echo "Building commit: ${env.GIT_COMMIT}"
+                        echo "Jenkins commit detected — skipping pipeline"
                     }
                 }
             }
@@ -78,7 +77,7 @@ pipeline {
                         git config user.email "jenkins@devops-project.local"
                         git config user.name "Jenkins"
                         git add helm/spring-app/values.yaml
-                        git commit -m "ci: update image tag to ''' + env.IMAGE_TAG + '''"
+                        git commit -m "[skip ci] update image tag to ''' + env.IMAGE_TAG + '''"
                         git push https://$GITHUB_TOKEN@github.com/RevanthChalamalasetty/devops-project.git HEAD:main
                     '''
                 }
@@ -94,13 +93,6 @@ pipeline {
                     currentBuild.description = 'Skipped: Jenkins own commit'
                 }
                 sh "docker rmi ${ECR_REPO}:${IMAGE_TAG} || true"
-            }
-        }
-        success {
-            script {
-                if (env.IS_JENKINS_COMMIT == 'false') {
-                    echo "Pipeline completed. Image: ${ECR_REPO}:${IMAGE_TAG}"
-                }
             }
         }
     }
