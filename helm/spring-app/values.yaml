@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 486336528116.dkr.ecr.ap-south-1.amazonaws.com/devops-project/spring-app
-  tag: "44"
+  tag: "45"
   pullPolicy: Always
 
 service:
